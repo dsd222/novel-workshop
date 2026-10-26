@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小说工坊</title>
+<style>
+  :root{
+    --bg:#0f0d0b; --panel:#17140f; --panel2:#1f1a14; --line:#2e271d;
+    --fg:#e0d8ca; --dim:#8b8072; --acc:#c8843c; --acc2:#9a6428;
+    --ok:#5aa87a; --bad:#c95b4e; --paper:#f2ecdf;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--fg);font:15px/1.8 "Microsoft YaHei",system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+  header{display:flex;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex:0 0 auto}
+  header .t{font-weight:600;font-size:17px;color:#f0e6d6;letter-spacing:1px}
+  header .sp{flex:1}
+  #status{font-size:13px;color:var(--dim)}
+  button{font:inherit;font-size:14px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+  button:hover{border-color:var(--acc2);color:#fff}
+  button.primary{background:var(--acc2);border-color:var(--acc2);color:#fff}
+  button.primary:hover{background:var(--acc)}
+  button.sm{padding:3px 8px;font-size:12.5px;border-radius:5px}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  main{display:flex;flex:1;min-height:0}
+
+  /* 左：目录 */
+  aside.toc{width:252px;flex:0 0 252px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+  .toc-head{padding:10px;border-bottom:1px solid var(--line);display:flex;gap:6px}
+  .toc-head button{flex:1}
+  #tocList{flex:1;overflow-y:auto}
+  .ch{padding:9px 12px;border-bottom:1px solid #241f18;cursor:pointer;position:relative}
+  .ch:hover{background:var(--panel2)}
+  .ch.on{background:var(--panel2);border-left:3px solid var(--acc);padding-left:9px}
+  .ch .n{font-size:14px;color:#e6ddcd}
+  .ch .m{font-size:11.5px;color:var(--dim);margin-top:2px}
+  .ch .bar{height:3px;background:#2a241c;border-radius:2px;margin-top:5px;overflow:hidden}
+  .ch .bar i{display:block;height:100%;background:var(--acc2)}
+  .ch .bar i.full{background:#5aa87a}
+  .ch .del{position:absolute;right:6px;top:6px;opacity:0;font-size:14px;color:var(--dim)}
+  .ch:hover .del{opacity:1}
+  .ch .del:hover{color:var(--bad)}
+
+  /* 中：正文 */
+  section.editor{flex:1;display:flex;flex-direction:column;min-width:0;background:#12100d}
+  .ed-head{padding:10px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+  #chTitle{flex:1;background:transparent;border:none;color:#f0e6d6;font:600 17px/1.4 inherit;outline:none;padding:4px 0}
+  #chTitle:focus{border-bottom:1px solid var(--acc2)}
+  #text{flex:1;margin:0;padding:22px 28px 40px;background:transparent;border:none;outline:none;resize:none;
+        color:var(--paper);font:16px/2.0 "Microsoft YaHei",Georgia,serif;overflow-y:auto}
+  .ed-foot{display:flex;gap:12px;align-items:center;padding:8px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
+  .ed-foot .sp{flex:1}
+  #wc{color:#d8c9b0}
+  #wc.full{color:#7fd6a4}
+
+  /* 右：责编 */
+  aside.ai{width:400px;flex:0 0 400px;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+  .ai-head{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .ai-head .n{font-weight:600;color:#f0e6d6}
+  .ai-head .sp{flex:1}
+  .chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .msg{border-radius:9px;padding:9px 11px;font-size:14px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+  .msg.u{align-self:flex-end;background:#33291c;border:1px solid #4a3b28;max-width:90%}
+  .msg.a{align-self:stretch;background:var(--panel2);border:1px solid var(--line)}
+  .msg .tag{font-size:11.5px;color:var(--dim);margin-bottom:4px}
+  .ttsbar{display:flex;gap:6px;margin-top:7px}
+  .opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .opt{text-align:left;background:#262019;border:1px solid #3d3225;border-radius:7px;padding:8px 10px;font-size:13.5px;cursor:pointer;color:#e2d8c6}
+  .opt:hover{border-color:var(--acc);color:#fff;background:#2f271d}
+  .ai-input{border-top:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:7px}
+  #ins{width:100%;min-height:76px;max-height:180px;resize:vertical;background:var(--panel2);color:var(--fg);
+       border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.7 inherit;outline:none}
+  #ins:focus{border-color:var(--acc2)}
+  .ai-input .row{display:flex;gap:8px;align-items:center}
+  .ai-input .row .sp{flex:1}
+  .tip{font-size:11.5px;color:var(--dim)}
+
+  /* 设定弹窗 */
+  #bible{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;z-index:50;align-items:center;justify-content:center}
+  #bible.on{display:flex}
+  .bible-box{width:min(900px,92vw);height:min(760px,88vh);background:var(--panel);border:1px solid var(--line);
+             border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+  .bible-box .h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .bible-box .h .sp{flex:1}
+  .bible-box .body{flex:1;display:flex;min-height:0}
+  .bible-box .tabs{width:130px;flex:0 0 130px;border-right:1px solid var(--line);overflow-y:auto}
+  .bible-box .tabs div{padding:10px 14px;cursor:pointer;font-size:14px;color:var(--dim);border-bottom:1px solid #241f18}
+  .bible-box .tabs div.on{background:var(--panel2);color:#f0e6d6;border-left:3px solid var(--acc);padding-left:11px}
+  .bible-box .pane{flex:1;padding:14px;display:flex;flex-direction:column}
+  .bible-box textarea{flex:1;width:100%;background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+                      border-radius:8px;padding:12px;font:14px/1.9 inherit;outline:none;resize:none}
+  .empty{color:var(--dim);padding:30px 16px;text-align:center;font-size:13px;line-height:1.9}
+
+  /* 输入弹窗 */
+  #askbox{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;z-index:60;align-items:center;justify-content:center}
+  #askbox.on{display:flex}
+  .ask-box{width:min(520px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:10px;
+           box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden}
+  .ask-h{padding:14px 18px 6px;font-size:16px;font-weight:600;color:#f0e6d6}
+  .ask-sub{padding:0 18px 10px;font-size:12.5px;color:var(--dim);line-height:1.6}
+  #askInput{margin:0 18px;width:calc(100% - 36px);min-height:90px;max-height:220px;resize:vertical;
+            background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+            padding:11px 12px;font:14px/1.75 inherit;outline:none}
+  #askInput:focus{border-color:var(--acc2)}
+  .ask-btns{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px 16px}
+  </style>
+</head>
+<body>
+
+<header>
+  <select id="bookSel" class="sm" style="max-width:220px"></select>
+  <button id="btnNewBook" class="sm">＋ 新书</button>
+  <span class="sp"></span>
+  <span id="status">加载中…</span>
+  <button id="btnAuto" class="sm">自动朗读：关</button>
+  <button id="btnPause" class="sm" style="display:none">⏸ 暂停</button>
+  <button id="btnStop" class="sm" style="display:none">⏹ 停止</button>
+  <button id="btnBible" class="sm">设定</button>
+  <button id="btnExport" class="sm">导出</button>
+</header>
+
+<main>
+  <aside class="toc">
+    <div class="toc-head">
+      <button id="btnNew" class="primary">+ 新章节</button>
+    </div>
+    <div id="tocList"></div>
+  </aside>
+
+  <section class="editor">
+    <div class="ed-head">
+      <input id="chTitle" placeholder="章节标题">
+    </div>
+    <textarea id="text" placeholder="从这里开始写……"></textarea>
+    <div class="ed-foot">
+      <span id="wc">0 字</span>
+      <span id="saveState"></span>
+      <span class="sp"></span>
+      <button id="btnReadCh" class="sm">🔊 朗读本章</button>
+      <button id="btnSplit" class="sm" disabled>拆章</button>
+    </div>
+  </section>
+
+  <aside class="ai">
+    <div class="ai-head">
+      <span class="n">责编</span>
+      <span class="sp"></span>
+      <button id="btnClear" class="sm">清空对话</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="ai-input">
+      <textarea id="ins" placeholder="告诉责编这次写什么。例如：&#10;「接着写：他决定先看那东西在听什么」&#10;「把上一段改短一半，别写景物」"></textarea>
+      <div class="row">
+        <span class="tip">Ctrl+Enter 发送</span>
+        <span class="sp"></span>
+        <button id="btnUndoRewrite" class="sm" style="display:none">撤销改写</button>
+        <button id="btnRewrite" class="sm">改这段</button>
+        <button id="btnRewriteAll" class="sm">改整章</button>
+        <button id="btnOpts" class="sm">重给选项</button>
+        <button id="btnSend" class="primary">让责编写</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div id="bible">
+  <div class="bible-box">
+    <div class="h">
+      <b id="bibleTitle">设定库</b>
+      <span class="sp"></span>
+      <button id="btnBibleSave" class="primary sm">保存设定</button>
+      <button id="btnBibleClose" class="sm">关闭</button>
+    </div>
+    <div class="body">
+      <div class="tabs" id="bibleTabs"></div>
+      <div class="pane"><textarea id="bibleText"></textarea></div>
+    </div>
+  </div>
+</div>
+
+
+<div id="askbox">
+  <div class="ask-box">
+    <div class="ask-h" id="askTitle">标题</div>
+    <div class="ask-sub" id="askSub"></div>
+    <textarea id="askInput"></textarea>
+    <div class="ask-btns">
+      <button id="askCancel" class="sm">取消</button>
+      <button id="askOk" class="primary sm">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let askResolve = null;
+function askText(title, sub, def){
+  return new Promise(res => {
+    askResolve = res;
+    $('askTitle').textContent = title || '';
+    $('askSub').textContent = sub || '';
+    $('askInput').value = def || '';
+    $('askbox').classList.add('on');
+    setTimeout(() => $('askInput').focus(), 30);
+  });
+}
+function askDone(v){
+  $('askbox').classList.remove('on');
+  const r = askResolve; askResolve = null;
+  if (r) r(v);
+}
+$('askOk').onclick = () => askDone($('askInput').value);
+$('askCancel').onclick = () => askDone(null);
+$('askInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); askDone($('askInput').value); }
+});
+
+let STATE = null, CID = null, CHAT = [], TARGET = 4000, CURKEY = null, BOOK = null;
+
+function setStatus(t, cls){ $('status').textContent = t; $('status').className = cls || ''; }
+function chars(t){ return (t || '').replace(/\s/g, '').length; }
+
+async function api(url, body){
+  let opt = {}, u = url;
+  if (body){
+    opt = { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...body, book: BOOK }) };
+  } else {
+    u = url + (url.includes('?') ? '&' : '?') + 'book=' + encodeURIComponent(BOOK || '');
+  }
+  const r = await fetch(u, opt);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+async function load(){
+  const saved = localStorage.getItem('novelBook');
+  const r = await fetch('/api/state' + (saved ? '?book=' + encodeURIComponent(saved) : ''));
+  STATE = await r.json();
+  BOOK = STATE.current;
+  localStorage.setItem('novelBook', BOOK);
+  TARGET = STATE.target || 4000;
+  renderBooks();
+  document.title = STATE.title + ' · 小说工坊';
+  renderToc();
+  const first = STATE.chapters[0];
+  if (first) await openChapter(first.id);
+  else {
+    CID = null;
+    $('text').value = ''; $('chTitle').value = ''; CHAT = []; renderChat(); updateWC();
+  }
+  setStatus(STATE.has_key ? '就绪 · ' + STATE.model : '没找到 API Key', STATE.has_key ? '' : 'bad');
+}
+
+function renderBooks(){
+  const sel = $('bookSel');
+  sel.innerHTML = '';
+  (STATE.books || []).forEach(b => {
+    const o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = b.title;
+    if (b.id === BOOK) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+$('bookSel').onchange = async () => {
+  await saveNow();
+  BOOK = $('bookSel').value;
+  localStorage.setItem('novelBook', BOOK);
+  CID = null;
+  await load();
+  setStatus('已切换：' + STATE.title);
+};
+
+$('bookSel').ondblclick = async () => {
+  const t = await askText('改书名', '', STATE.title);
+  if (!t) return;
+  await api('/api/book/rename', { title: t });
+  await load();
+  setStatus('书名已改：' + t);
+};
+
+$('btnNewBook').onclick = async () => {
+  const t = await askText('新建一本书', '建好后双击左上角下拉框可以改名。', '新书');
+  if (!t) return;
+  await saveNow().catch(() => {});
+  const r = await fetch('/api/books/new', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: t })
+  });
+  const j = await r.json();
+  if (j.error) return alert('建书失败：' + j.error);
+  BOOK = j.id;
+  localStorage.setItem('novelBook', BOOK);
+  CID = null;
+  await load();
+  setStatus('新书已建：' + t + '（设定库是模板，可以改）');
+};
+
+function renderToc(){
+  const box = $('tocList');
+  box.innerHTML = '';
+  if (!STATE.chapters.length){ box.innerHTML = '<div class="empty">还没有章节</div>'; return; }
+  STATE.chapters.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'ch' + (c.id === CID ? ' on' : '');
+    const pct = Math.min(100, Math.round(c.chars / TARGET * 100));
+    d.innerHTML = `<div class="n">${esc(c.title)}</div>
+      <div class="m">${c.chars} / ${TARGET} 字</div>
+      <div class="bar"><i class="${c.chars >= TARGET ? 'full' : ''}" style="width:${pct}%"></i></div>
+      <span class="del" title="删除">×</span>`;
+    d.onclick = e => { if (e.target.classList.contains('del')) return; openChapter(c.id); };
+    d.querySelector('.del').onclick = async e => {
+      e.stopPropagation();
+      if (STATE.chapters.length <= 1) return alert('至少保留一章');
+      if (!confirm('删除这一章？不可恢复')) return;
+      const j = await api('/api/chapter/delete', { id: c.id });
+      STATE.chapters = j.chapters;
+      if (CID === c.id) CID = null;
+      renderToc();
+      if (!CID && STATE.chapters[0]) openChapter(STATE.chapters[0].id);
+    };
+    box.appendChild(d);
+  });
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function openChapter(id){
+  if (CID) await saveNow();
+  speakToken++; stopAudio();
+  CID = id;
+  CHAT = []; renderChat();
+  const j = await api('/api/chapter?id=' + encodeURIComponent(id));
+  $('chTitle').value = j.title;
+  $('text').value = j.text;
+  CHAT = j.chat || [];
+  renderChat();
+  updateWC();
+  renderToc();
+}
+
+function updateWC(){
+  const n = chars($('text').value);
+  $('wc').textContent = n + ' / ' + TARGET + ' 字';
+  $('wc').className = n >= TARGET ? 'full' : '';
+  $('btnSplit').disabled = n < TARGET;
+  $('btnSplit').textContent = '拆章（满 ' + TARGET + '）';
+}
+
+let saveTimer = null;
+function scheduleSave(){
+  $('saveState').textContent = '…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 900);
+}
+async function saveNow(){
+  if (!CID) return;
+  clearTimeout(saveTimer);
+  const text = $('text').value;
+  const title = $('chTitle').value.trim() || '未命名';
+  // 保护：不允许用空文本覆盖已有内容（防止服务重启时页面空载把正文清掉）
+  const known = (STATE && STATE.chapters || []).find(x => x.id === CID);
+  if (!text.trim() && known && known.chars > 0){
+    $('saveState').textContent = '跳过空保存';
+    return;
+  }
+  await api('/api/chapter/save', { id: CID, title, text, chat: CHAT });
+  const c = STATE.chapters.find(x => x.id === CID);
+  if (c){ c.chars = chars(text); c.title = title; }
+  $('saveState').textContent = '已保存';
+  renderToc();
+}
+$('text').addEventListener('input', () => { updateWC(); scheduleSave(); });
+$('chTitle').addEventListener('input', scheduleSave);
+
+$('btnNew').onclick = async () => {
+  await saveNow();
+  const j = await api('/api/chapter/new', {});
+  STATE.chapters = j.chapters;
+  await openChapter(j.id);
+  $('chTitle').focus();
+};
+
+$('btnSplit').onclick = async () => {
+  if (!confirm('把本章从中间断开，后半段变成新的一章？')) return;
+  await saveNow();
+  const j = await api('/api/chapter/split', { id: CID });
+  STATE.chapters = j.chapters;
+  await openChapter(CID);
+  setStatus('已拆章：后半段 ' + j.moved + ' 字移到新章');
+};
+
+/* ---------- 责编 ---------- */
+function renderChat(){
+  const box = $('chat');
+  box.innerHTML = '';
+  if (!CHAT.length){
+    box.innerHTML = '<div class="empty">在这里指挥责编。<br>它读过设定库，会接着正文往下写。<br><br>写完若需要你拍板，会给 2–3 个走向按钮。</div>';
+    return;
+  }
+  CHAT.forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'msg ' + (m.role === 'user' ? 'u' : 'a');
+    d.innerHTML = (m.role === 'assistant' ? '<div class="tag">责编</div>' : '') + esc(m.content);
+    if (m.role === 'assistant'){
+      const bar = document.createElement('div');
+      bar.className = 'ttsbar';
+      const b = document.createElement('button');
+      b.className = 'sm';
+      b.textContent = '🔊 朗读';
+      b.onclick = () => {
+        if (player && curSpeakText === m.content) { $('btnPause').click(); return; }
+        speak(m.content);
+      };
+      bar.appendChild(b);
+      d.appendChild(bar);
+      if (m.titles && m.titles.length){
+        const tb = document.createElement('div');
+        tb.className = 'ttsbar';
+        const lbl = document.createElement('span');
+        lbl.className = 'tip';
+        lbl.textContent = '章名：';
+        tb.appendChild(lbl);
+        m.titles.forEach(t => {
+          const btn = document.createElement('button');
+          btn.className = 'sm';
+          btn.textContent = t;
+          btn.onclick = () => {
+            $('chTitle').value = t;
+            scheduleSave();
+            setStatus('章名已填入：' + t);
+          };
+          tb.appendChild(btn);
+        });
+        d.appendChild(tb);
+      }
+    }
+    if (m.options && m.options.length){
+      const w = document.createElement('div');
+      w.className = 'opts';
+      m.options.forEach(o => {
+        const b = document.createElement('button');
+        b.className = 'opt';
+        b.textContent = o.mark + ' ' + o.text;
+        b.onclick = () => { $('ins').value = o.mark + ' ' + o.text; send(); };
+        w.appendChild(b);
+      });
+      d.appendChild(w);
+    }
+    box.appendChild(d);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+async function send(){
+  if (!CID) return;
+  const ins = $('ins').value.trim();
+  if (!ins) return;
+  const history = CHAT.map(m => ({ role: m.role, content: m.content }));
+  CHAT.push({ role: 'user', content: ins });
+  $('ins').value = '';
+  renderChat();
+  renderChatBusy(true);
+  try{
+    const j = await api('/api/ai', { id: CID, instruction: ins, history });
+    CHAT.push({ role: 'assistant', content: j.text, options: j.options, titles: j.titles });
+    if (j.finish === 'length') {
+      CHAT.push({ role: 'assistant', content: '⚠ 这次输出被截断了（finish=length）。用同一条指令再发一次就能补齐。' });
+    }
+    if (AUTO) speak(j.text);
+    const cur = $('text').value;
+    $('text').value = (cur.trim() ? cur.replace(/\s+$/, '') + '\n\n' : '') + j.text;
+    updateWC();
+    await saveNow();
+    const n = chars($('text').value);
+    if (n >= TARGET){
+      setStatus('本章已满 ' + n + ' 字，可以拆章或开新章');
+      $('btnSplit').disabled = false;
+    } else {
+      setStatus('刚写了 ' + j.chars + ' 字，本章还差 ' + (TARGET - n) + ' 字');
+    }
+  }catch(e){
+    CHAT.push({ role:'assistant', content: '【出错】' + e.message });
+    setStatus('调用失败', 'bad');
+  }finally{
+    renderChatBusy(false);
+    renderChat();
+  }
+}
+
+function renderChatBusy(on){
+  $('btnSend').disabled = on;
+  $('btnSend').textContent = on ? '写作中…' : '让责编写';
+}
+$('btnSend').onclick = send;
+let LAST_REWRITE = null;
+
+function pickTarget(){
+  const ta = $('text');
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  if (b - a > 10) return { text: ta.value.slice(a, b), start: a, end: b };
+  const v = ta.value;
+  const idx = v.lastIndexOf('\n\n');
+  const start = idx >= 0 ? idx + 2 : 0;
+  return { text: v.slice(start), start, end: v.length };
+}
+
+async function doRewrite(scope){
+  if (!CID) return;
+  const ta = $('text');
+  let src, start, end;
+  if (scope === 'chapter'){
+    src = ta.value; start = 0; end = ta.value.length;
+  } else {
+    const t = pickTarget();
+    src = t.text; start = t.start; end = t.end;
+  }
+  if (!src.trim()) { setStatus('没有可以改的内容'); return; }
+  let ins = $('ins').value.trim();
+  if (!ins){
+    ins = await askText(scope === 'chapter' ? '改整章' : '改这一段',
+      scope === 'chapter'
+        ? '会给整章一起改：保持段落结构、篇幅和情节推进，不会压缩也不会续写。'
+        : '只改选中的这段，不往下写。不选则默认改最后一段。', '');
+  }
+  if (!ins || !ins.trim()) return;
+  setStatus('正在改写…');
+  try{
+    const j = await api('/api/rewrite', { text: src, instruction: ins, scope });
+    LAST_REWRITE = { full: ta.value };
+    ta.value = ta.value.slice(0, start) + j.text + ta.value.slice(end);
+    updateWC();
+    await saveNow();
+    $('btnUndoRewrite').style.display = 'inline';
+    CHAT.push({ role: 'assistant',
+      content: (scope === 'chapter' ? '（已改写整章）' : '（已改写选中的段落）') + '\n\n' + j.text.slice(0, 120) + (j.text.length > 120 ? '…' : '') });
+    renderChat();
+    $('ins').value = '';
+    setStatus('已改写，可撤销');
+  }catch(e){
+    setStatus('改写失败：' + e.message, 'bad');
+  }
+}
+
+$('btnRewrite').onclick = () => doRewrite('paragraph');
+$('btnRewriteAll').onclick = () => doRewrite('chapter');
+
+$('btnUndoRewrite').onclick = async () => {
+  if (!LAST_REWRITE) return;
+  $('text').value = LAST_REWRITE.full;
+  LAST_REWRITE = null;
+  $('btnUndoRewrite').style.display = 'none';
+  updateWC();
+  await saveNow();
+  setStatus('已撤销改写');
+};
+
+$('btnOpts').onclick = async () => {
+  if (!CID) return;
+  setStatus('正在生成走向…');
+  try{
+    const j = await api('/api/options', { id: CID });
+    if (!j.options || !j.options.length) { setStatus('这次没出走向，再点一次', 'bad'); return; }
+    CHAT.push({ role: 'assistant', content: '（重新给出走向）', options: j.options });
+    renderChat();
+    await saveNow();
+    setStatus('走向已更新');
+  }catch(e){
+    setStatus('失败：' + e.message, 'bad');
+  }
+};
+$('ins').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); send(); } });
+$('btnClear').onclick = () => { CHAT = []; renderChat(); };
+
+/* ---------- 朗读（全局单播放器） ---------- */
+let AUTO = localStorage.getItem('autoRead') === '1';
+let player = null, playerUrl = null, paused = false, speakToken = 0, curSpeakText = '';
+
+function syncAuto(){
+  const b = $('btnAuto');
+  b.textContent = '自动朗读：' + (AUTO ? '开' : '关');
+  b.className = 'sm' + (AUTO ? ' primary' : '');
+}
+function syncAudioUI(){
+  const on = !!player;
+  $('btnPause').style.display = on ? '' : 'none';
+  $('btnStop').style.display = on ? '' : 'none';
+  $('btnPause').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+}
+function stopAudio(){
+  if (player) { try { player.pause(); } catch(e){} player = null; }
+  if (playerUrl) { URL.revokeObjectURL(playerUrl); playerUrl = null; }
+  paused = false;
+  syncAudioUI();
+}
+async function speak(text){
+  const t = (text || '').trim();
+  if (!t) return;
+  const token = ++speakToken;
+  if (bc) bc.postMessage({ type: 'stop', from: TAB_ID });
+  stopAudio();                    // 先掐掉上一条，绝不叠音
+  curSpeakText = t;
+  setStatus('合成语音…');
+  try{
+    const r = await fetch('/api/tts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: t })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    if (token !== speakToken) return;      // 期间又被点了，丢弃这次
+    playerUrl = URL.createObjectURL(blob);
+    player = new Audio(playerUrl);
+    player.onended = () => { stopAudio(); setStatus('朗读结束'); };
+    await player.play();
+    paused = false;
+    syncAudioUI();
+    setStatus('朗读中…（可暂停）');
+  }catch(e){
+    stopAudio();
+    setStatus('朗读失败：' + e.message, 'bad');
+  }
+}
+$('btnPause').onclick = () => {
+  speakToken++;                    // 关键：作废还在合成中的请求，否则它一合成完就自己开播
+  if (bc) bc.postMessage({ type: 'stop', from: TAB_ID });
+  if (!player) { stopAudio(); setStatus('已取消（那条还在合成，已作废）'); return; }
+  if (paused) { player.play(); paused = false; setStatus('朗读中…'); }
+  else { player.pause(); paused = true; setStatus('已暂停'); }
+  syncAudioUI();
+};
+$('btnStop').onclick = () => {
+  speakToken++;
+  if (bc) bc.postMessage({ type: 'stop', from: TAB_ID });
+  stopAudio();
+  setStatus('已停止');
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { speakToken++; stopAudio(); }   // 切走这个标签就闭嘴
+});
+$('btnAuto').onclick = () => {
+  AUTO = !AUTO;
+  localStorage.setItem('autoRead', AUTO ? '1' : '0');
+  syncAuto();
+};
+$('btnReadCh').onclick = () => speak($('text').value);
+syncAuto();
+syncAudioUI();
+
+/* 多标签页互斥：任何一个标签开始/停止朗读，其它标签同步停下 */
+const TAB_ID = Math.random().toString(36).slice(2);
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('novel-tts') : null;
+if (bc) {
+  bc.onmessage = e => {
+    if (e.data && e.data.from !== TAB_ID && e.data.type === 'stop') stopAudio();
+  };
+}
+
+/* ---------- 设定库 ---------- */
+let EDIT = {}, EDIT_KEY = null;
+const GP = '通用·';
+$('btnBible').onclick = () => {
+  EDIT = {};
+  for (const [k, v] of Object.entries(STATE.common || {})) EDIT[GP + k] = v;
+  for (const [k, v] of Object.entries(STATE.bible || {})) EDIT[k] = v;
+  const keys = Object.keys(EDIT);
+  const tabs = $('bibleTabs');
+  tabs.innerHTML = '';
+  keys.forEach((k, i) => {
+    const d = document.createElement('div');
+    d.textContent = k;
+    d.className = i === 0 ? 'on' : '';
+    if (k.startsWith(GP)) d.style.color = '#d0904a';
+    d.onclick = () => {
+      tabs.querySelectorAll('div').forEach(x => x.classList.remove('on'));
+      d.classList.add('on');
+      if (EDIT_KEY) EDIT[EDIT_KEY] = $('bibleText').value;
+      EDIT_KEY = k;
+      $('bibleText').value = EDIT[k] || '';
+    };
+    tabs.appendChild(d);
+  });
+  EDIT_KEY = keys[0] || null;
+  $('bibleTitle').textContent = '设定库 · ' + STATE.title + '　（橙色＝通用，所有书共享）';
+  $('bibleText').value = EDIT_KEY ? EDIT[EDIT_KEY] : '';
+  $('bible').classList.add('on');
+};
+$('btnBibleClose').onclick = () => $('bible').classList.remove('on');
+$('btnBibleSave').onclick = async () => {
+  if (EDIT_KEY) EDIT[EDIT_KEY] = $('bibleText').value;
+  const common = {}, bible = {};
+  for (const [k, v] of Object.entries(EDIT)) {
+    if (k.startsWith(GP)) common[k.slice(GP.length)] = v;
+    else bible[k] = v;
+  }
+  await api('/api/common', { common });
+  await api('/api/bible', { bible });
+  STATE.common = common;
+  STATE.bible = bible;
+  $('bible').classList.remove('on');
+  setStatus('已保存：通用 ' + Object.keys(common).length + ' 项 / 本书 ' + Object.keys(bible).length + ' 项');
+};
+
+$('btnExport').onclick = async () => {
+  await saveNow();
+  const r = await fetch('/api/export?book=' + encodeURIComponent(BOOK || ''));
+  const t = await r.text();
+  const blob = new Blob(['\ufeff' + t], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (STATE.title || 'novel') + '.md';
+  a.click();
+};
+
+window.addEventListener('beforeunload', e => { if (CID) { e.preventDefault(); e.returnValue = ''; } });
+
+load();
+</script>
+</body>
+</html>
